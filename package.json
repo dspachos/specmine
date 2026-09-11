@@ -1,0 +1,31 @@
+{
+  "name": "specmine",
+  "version": "0.1.0",
+  "description": "Mine specifications and requirements out of an existing codebase into a linked .specs/ knowledge base, so AI agents can consult real requirements and cross-check PRs against them.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "specmine": "./bin/specmine.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "templates"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "specifications",
+    "requirements",
+    "reverse-engineering",
+    "ai-agents",
+    "skills",
+    "claude",
+    "code-review",
+    "documentation"
+  ]
+}
