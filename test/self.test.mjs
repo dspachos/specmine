@@ -23,6 +23,7 @@ test("init scaffolds .specs/ and installs skills", async () => {
   }
   assert.ok(fs.existsSync(path.join(dir, ".claude", "skills", "specmine-scan", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".claude", "skills", "specmine-check", "SKILL.md")));
+  assert.ok(fs.existsSync(path.join(dir, ".github", "workflows", "specmine.yml")));
   // idempotent: second init must not clobber
   fs.writeFileSync(path.join(dir, ".specs", "overview.md"), "# hand-edited\n");
   await runInit(dir);
