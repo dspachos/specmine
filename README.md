@@ -26,6 +26,7 @@ self-audits a sample of its own citations, and regenerates `.specs/index.json`.
 
 ```bash
 npx specmine validate    # deterministic lint: citations, IDs, links, index sync
+npx specmine index        # regenerate index.json after editing requirement docs
 npx specmine check       # diff → affected requirements (no AI, no keys)
 npx specmine check --ai  # + LLM verdicts, headless (CI-ready)
 ```

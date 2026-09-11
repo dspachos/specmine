@@ -98,6 +98,26 @@ See [missing](nope.md).
   assert.doesNotMatch(r2.errors.join("\n"), /index\.json/);
 });
 
+test("index regenerates from docs (specmine index)", async () => {
+  const dir = tmp();
+  await runInit(dir);
+  fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\ny\n");
+  fs.writeFileSync(
+    path.join(dir, ".specs", "requirements", "functional", "auth.md"),
+    `### FR-AUTH-001 — Tokens\n\nTokens MUST expire.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n`
+  );
+  const before = await runValidate(dir); // index out of date -> error
+  reset();
+  assert.match(before.errors.join("\n"), /index\.json: missing/);
+  const after = await runValidate(dir, { writeIndex: true }); // regen
+  reset();
+  assert.equal(after.code, 0, after.errors.join("; "));
+  const idx = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "index.json"), "utf8"));
+  assert.deepEqual(idx.fileIndex, { "src/auth/tokens.ts": ["FR-AUTH-001"] });
+  assert.equal(idx.by, "specmine index");
+});
+
 test("check maps changed files to requirements and flags NO-SPEC", async () => {
   const dir = tmp();
   await runInit(dir);

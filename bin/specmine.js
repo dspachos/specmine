@@ -9,6 +9,7 @@ const HELP = `specmine — mine specifications out of a codebase, for AI agents
 Usage:
   specmine init [dir]             Scaffold .specs/ knowledge base + install agent skills
   specmine validate [dir]         Lint .specs/: citations, IDs, links, index sync
+  specmine index [dir]            Regenerate .specs/index.json from the docs
   specmine check [dir] [options]  Map code changes (diff or --files) to requirements
                                   --base <ref>    git base ref (default origin/main, then main)
                                   --files a,b,c   explicit changed files instead of git
@@ -39,6 +40,7 @@ async function main() {
   try {
     if (cmd === "init") await runInit(dir);
     else if (cmd === "validate") await runValidate(dir);
+    else if (cmd === "index") await runValidate(dir, { writeIndex: true });
     else if (cmd === "check")
       process.exitCode = await runCheck(dir, {
         base: values.base,
