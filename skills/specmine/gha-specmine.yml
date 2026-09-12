@@ -1,7 +1,7 @@
 # specmine gate: lint the .specs/ knowledge base and map PR changes to
-# requirements. Runs the skill's scripts directly — they are committed in-repo.
+# requirements. Runs the in-repo scripts directly — committed with the repo.
 # Verdicts (SATISFIED/VIOLATED) are judgment: that's the review agent's job,
-# triggered via /specmine:check — CI here enforces the deterministic floor.
+# triggered via the specmine skill — CI here enforces the deterministic floor.
 name: specmine
 
 on:
@@ -31,7 +31,7 @@ jobs:
           node-version: 22
 
       - name: Validate .specs (citations, IDs, links, index sync)
-        run: node .claude/skills/specmine/scripts/validate.mjs
+        run: node .specmine/scripts/validate.mjs
 
       - name: Map changed files to requirements
-        run: node .claude/skills/specmine/scripts/check.mjs
+        run: node .specmine/scripts/check.mjs

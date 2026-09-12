@@ -2,7 +2,7 @@
 description: Cross-check changes or a PR against the requirements in .specs/
 argument-hint: "[PR number | PR URL | base ref — default: current diff vs origin/main]"
 ---
-Load the `specmine` skill (.claude/skills/specmine/SKILL.md) and execute its **check** workflow.
+Load the `specmine` skill and execute its **check** workflow.
 
 Target: ${ARGUMENTS:-current working tree / branch vs origin/main}
 

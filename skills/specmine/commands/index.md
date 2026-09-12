@@ -4,7 +4,7 @@ argument-hint: "[dir — default: repo root]"
 ---
 Regenerate the file→requirements index, then lint:
 
-    node .claude/skills/specmine/scripts/validate.mjs ${ARGUMENTS:.} --regen-index
-    node .claude/skills/specmine/scripts/validate.mjs ${ARGUMENTS:.}
+    node .specmine/scripts/validate.mjs ${ARGUMENTS:.} --regen-index
+    node .specmine/scripts/validate.mjs ${ARGUMENTS:.}
 
 Report both outputs. Never hand-edit `index.json.fileIndex`.

@@ -9,13 +9,27 @@ description: Mines specs from code into .specs/ and cross-checks changes against
 [`.specs/CONVENTIONS.md`](../../../.specs/CONVENTIONS.md) before writing or
 judging anything in it.
 
-## Scripts (deterministic — always run these, never re-implement)
+## Bootstrap
 
-Run from the repo root:
+If `.specs/` or `.specmine/scripts/` is missing, run this skill's init script
+from the repo root first (idempotent, never overwrites user edits):
 
 ```bash
-node .claude/skills/specmine/scripts/validate.mjs [dir] [--regen-index]
-node .claude/skills/specmine/scripts/check.mjs [dir] [--base <ref>|--files a,b,c]
+node <this skill's directory>/scripts/init.mjs
+```
+
+It scaffolds `.specs/`, copies the scripts to `.specmine/scripts/` (the single
+in-repo path shared by every agent and CI), installs the CI gate and optional
+slash commands. If the skill was installed via `npx skills add`, the agent
+knows its own directory — use that path.
+
+## Scripts (deterministic — always run these, never re-implement)
+
+Run from the repo root (after bootstrap):
+
+```bash
+node .specmine/scripts/validate.mjs [dir] [--regen-index]
+node .specmine/scripts/check.mjs [dir] [--base <ref>|--files a,b,c]
 ```
 
 - `validate.mjs` — lint: citations (file/line exist), unique IDs, cross-doc
@@ -71,9 +85,9 @@ validator|policy|middleware|model|migration|handler|config`; low/skip:
 names as requirement candidates and cite them as evidence, don't excavate
 internals).
 
-**Phase 0 — preflight.** `.specs/` missing → tell the user to run
-`npx specmine init` and stop. Read `index.json.modules`; skip `verified`
-modules unless the user names them or asks for a refresh.
+**Phase 0 — preflight.** Run the bootstrap above if needed. Read
+`index.json.modules`; skip `verified` modules unless the user names them or
+asks for a refresh.
 
 **Phase 1 — survey (fast, breadth-first).** Group tracked files into modules
 by directory + import clustering; detect stack, entry points, external
