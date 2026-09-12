@@ -19,5 +19,5 @@ jobs:
       - name: Skill installs and bootstraps a fresh repo
         run: |
           mkdir /tmp/fresh && cd /tmp/fresh && git init -q
-          node skills/specmine/scripts/init.mjs
+          node "$GITHUB_WORKSPACE/skills/specmine/scripts/init.mjs"
           node .specmine/scripts/validate.mjs
