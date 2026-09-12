@@ -88,10 +88,18 @@ test("check.mjs maps changed files to requirements and flags NO-SPEC", () => {
   );
   assert.equal(run("validate.mjs", ["--regen-index"], dir).status, 0);
 
-  const r = run("check.mjs", ["--files", "src/auth/tokens.ts,src/unmapped.ts"], dir);
+  // a skipped module: files under its path are intentional non-coverage
+  const idxFile = path.join(dir, ".specs", "index.json");
+  const idx = JSON.parse(fs.readFileSync(idxFile, "utf8"));
+  idx.modules = { generated: { status: "skipped", path: "src/generated", reason: "generated SDK" } };
+  fs.writeFileSync(idxFile, JSON.stringify(idx, null, 2));
+
+  const r = run("check.mjs", ["--files", "src/auth/tokens.ts,src/unmapped.ts,src/generated/client.ts"], dir);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /FR-AUTH-001\s+Token expiry\s+<-/);
   assert.match(r.stdout, /NO-SPEC\s+src\/unmapped\.ts/);
+  assert.match(r.stdout, /SKIPPED\s+src\/generated\/client\.ts\s+\(module "generated": generated SDK/);
+  assert.doesNotMatch(r.stdout, /NO-SPEC\s+src\/generated/);
   assert.match(fs.readFileSync(path.join(dir, ".specs", "check-report.md"), "utf8"), /FR-AUTH-001/);
 });
 

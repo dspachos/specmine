@@ -153,7 +153,12 @@ by directory + import clustering; detect stack, entry points, external
 boundaries. Write `.specs/overview.md` (Purpose / Stack / Boundaries / Modules
 / Entry points — each module one line, cited). Mark modules `surveyed` in
 `index.json.modules`. **Present the module list and confirm scope before the
-heavy phase.**
+heavy phase.** On large codebases the user may mark modules as **skipped**:
+record `status: "skipped"`, `path` (its directory prefix), `reason`, and
+`skippedAt`. Skipped modules are excluded from excavation and from future
+surveys' offers; `check` reports their files as intentionally uncovered
+(`SKIPPED`) instead of `NO-SPEC`; `audit` lists them with reasons. Un-skip
+any time by naming the module.
 
 **Phase 2 — excavate (one module, heavy).** Read every high/medium-significance
 file. Trace 2–5 representative runtime flows first (numbered steps, citation

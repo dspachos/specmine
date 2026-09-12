@@ -100,9 +100,17 @@ for (const [ev, ids] of byEvidence)
 const index = fs.existsSync(path.join(specsDir, "index.json"))
   ? JSON.parse(fs.readFileSync(path.join(specsDir, "index.json"), "utf8"))
   : {};
-for (const [mod, st] of Object.entries(index.modules || {}))
-  if (st.status !== "verified")
+for (const [mod, st] of Object.entries(index.modules || {})) {
+  if (st.status === "skipped")
+    findings.push({
+      severity: "INFO",
+      kind: "SKIPPED",
+      ids: [],
+      detail: `module "${mod}"${st.path ? ` (${st.path})` : ""} skipped: ${st.reason || "no reason recorded"}`,
+    });
+  else if (st.status !== "verified")
     findings.push({ severity: "INFO", kind: "COVERAGE", ids: [], detail: `module "${mod}" is ${st.status}` });
+}
 const inferred = reqs.filter((r) => /inferred/i.test(r.body));
 if (reqs.length && inferred.length / reqs.length > 0.5)
   findings.push({

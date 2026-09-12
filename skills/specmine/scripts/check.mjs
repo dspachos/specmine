@@ -70,8 +70,15 @@ if (!fs.existsSync(indexFile)) {
   console.error("specmine: no .specs/index.json — run `npx specmine init`, then scan.");
   process.exit(1);
 }
-const index = JSON.parse(fs.readFileSync(indexFile, "utf8")).fileIndex || {};
+const index = JSON.parse(fs.readFileSync(indexFile, "utf8"));
+const fileIndex = index.fileIndex || {};
 const reqs = requirementMap();
+
+/** Skipped-module lookup: changed files under a skipped path are intentional non-coverage. */
+const skipped = Object.entries(index.modules || {})
+  .filter(([, m]) => m.status === "skipped" && m.path)
+  .map(([name, m]) => ({ name, path: m.path.endsWith("/") ? m.path : m.path + "/", reason: m.reason || "" }));
+const skippedFor = (f) => skipped.find((s) => f.startsWith(s.path));
 
 // --- changed files ---
 let baseRef = "explicit --files";
@@ -101,15 +108,18 @@ if (!changed.length) {
 // --- map: file -> req ids ---
 const affected = new Map(); // id -> [files]
 const uncovered = [];
+const skippedFiles = [];
 for (const f of changed) {
-  const ids = index[f];
+  const ids = fileIndex[f];
   if (ids?.length) {
     for (const id of ids) {
       if (!affected.has(id)) affected.set(id, []);
       affected.get(id).push(f);
     }
   } else {
-    uncovered.push(f);
+    const sk = skippedFor(f);
+    if (sk) skippedFiles.push({ f, ...sk });
+    else uncovered.push(f);
   }
 }
 const missingDocs = [...affected.keys()].filter((id) => !reqs.has(id));
@@ -121,7 +131,10 @@ for (const id of affected.keys()) {
   console.log(`    ${id}  ${reqs.get(id)?.title || "(missing doc!)"}  <- ${affected.get(id).join(", ")}`);
 }
 for (const f of uncovered) {
-  console.log(`    NO-SPEC  ${f}${moduleGuess(index, f) ? `  (near module ${moduleGuess(index, f)})` : ""}`);
+  console.log(`    NO-SPEC  ${f}${moduleGuess(fileIndex, f) ? `  (near module ${moduleGuess(fileIndex, f)})` : ""}`);
+}
+for (const s of skippedFiles) {
+  console.log(`    SKIPPED  ${s.f}  (module "${s.name}"${s.reason ? `: ${s.reason}` : ""} — intentional)`);
 }
 for (const id of missingDocs) console.error(`  ERROR ${id} in index but not in any doc — run the validate script`);
 
@@ -143,7 +156,7 @@ const lines = [
   `## No spec coverage`,
   ...(uncovered.length
     ? uncovered.map(
-        (f) => `- ${f}${moduleGuess(index, f) ? ` (near module ${moduleGuess(index, f)})` : ""}`
+        (f) => `- ${f}${moduleGuess(fileIndex, f) ? ` (near module ${moduleGuess(fileIndex, f)})` : ""}`
       )
     : ["- none"]),
   ``,
