@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// GENERATED — copied into repos at .specmine/scripts/ by init.mjs. Local edits
+// are overwritten on refresh: fix upstream at github.com/dspachos/specmine and
+// re-run init.
 // specmine validate — deterministic lint of .specs/: citation file/line
 // existence, unique IDs, cross-doc links, index.json sync.
 // Usage: node validate.mjs [dir] [--regen-index]
@@ -15,7 +18,9 @@ const root = path.resolve(args.find((a) => !a.startsWith("--")) || ".");
 const LOOKS_LIKE_REQ = /^(?:FR|NFR|BR|C)-/i;
 const SOURCES_LINE = /\*\*Sources?:?\*\*:?\s*([^\n]+)/i; // may sit mid-line after **Confidence:**
 const BRACKET_CITATION = /\[([^\[\]]+?):(\d+)(?:-(\d+))?\](?!\()/g;
-const MD_LINK = /\[[^\]]*\]\(([^)\s]+)(#[^)\s]*)?\)/g;
+// Path group excludes "#" so an anchor isn't swallowed into the path,
+// leaving the optional anchor group free to actually match.
+const MD_LINK = /\[[^\]]*\]\(([^)\s#]+)(#[^)\s]*)?\)/g;
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -138,7 +143,7 @@ for (const file of mdFiles) {
       errors.push(`${rel}: BROKEN_LINK — [${target}]`);
       continue;
     }
-    if (m[2] && target.startsWith(".specs/")) {
+    if (m[2] && abs.startsWith(specsDir + path.sep)) {
       const headings = new Set(
         fs
           .readFileSync(abs, "utf8")

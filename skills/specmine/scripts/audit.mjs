@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// GENERATED — copied into repos at .specmine/scripts/ by init.mjs. Local edits
+// are overwritten on refresh: fix upstream at github.com/dspachos/specmine and
+// re-run init.
 // specmine audit — deterministic layer of the specs×specs coherence audit.
 // Finds structural smells and *candidates* (pairs/flags) for the agent's
 // judgment layer. Writes .specs/audit-facts.json; exit 0 (it's a report,

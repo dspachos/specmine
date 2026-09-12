@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// GENERATED — copied into repos at .specmine/scripts/ by init.mjs. Local edits
+// are overwritten on refresh: fix upstream at github.com/dspachos/specmine and
+// re-run init.
 // specmine check — deterministic: map changed files to requirements via
 // .specs/index.json. Produces the affected-requirements list + NO-SPEC files
 // + .specs/check-report.md. The verdict layer (SATISFIED/VIOLATED/STALE_SPEC)

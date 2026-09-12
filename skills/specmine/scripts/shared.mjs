@@ -1,4 +1,7 @@
 // Shared helpers for specmine skill scripts. Zero dependencies, node >= 20.
+// GENERATED — copied into repos at .specmine/scripts/ by init.mjs. Local edits
+// are overwritten on refresh: fix upstream at github.com/dspachos/specmine and
+// re-run init. 
 import { spawnSync } from "node:child_process";
 
 /**

@@ -44,6 +44,19 @@ test("validate.mjs passes on pristine skeleton, catches errors after tampering",
   assert.equal(run("init.mjs", [], dir).status, 0);
   assert.equal(run("validate.mjs", [], dir).status, 0);
 
+  // anchor links: valid anchor passes, bogus anchor warns, path not swallowed by '#'
+  const glossary = path.join(dir, ".specs", "glossary.md");
+  fs.writeFileSync(glossary, "# Glossary\n\n## Action\n\n- An executable operation.\n");
+  const overview = path.join(dir, ".specs", "overview.md");
+  fs.writeFileSync(
+    overview,
+    "# Overview\n\nSee [Action](glossary.md#action) and [Bogus](glossary.md#nope).\n"
+  );
+  const anchorRun = run("validate.mjs", [], dir);
+  const aOut = anchorRun.stdout + anchorRun.stderr;
+  assert.doesNotMatch(aOut, /BROKEN_LINK/, "anchor must not be swallowed into the path");
+  assert.match(aOut, /BROKEN_ANCHOR — \[glossary.md#nope\]/);
+
   fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
   fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\ny\n");
   fs.writeFileSync(
