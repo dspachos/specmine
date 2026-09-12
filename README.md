@@ -59,13 +59,68 @@ npx skills add dspachos/specmine
 
 ```text
 # in your AI agent (Claude Code, Cursor, pi, Codex, OpenCode, …)
-> scan this repo for specs          # ① excavates requirements into .specs/
+> scan this repo for specs          # ① bootstraps + excavates requirements into .specs/
 > check my diff against the specs   # ② before every PR
 ```
 
-That's it — first contact bootstraps `.specs/`, the in-repo scripts, the CI
-gate, and slash commands where the host supports them (`/specmine:scan` … in
-Claude Code, `/specmine-scan` in pi; everywhere else, plain language works).
+### From zero to a gated repo (end to end)
+
+**1 · Install the skill** — terminal, in your repo:
+
+```bash
+npx skills add dspachos/specmine     # pick your agent(s) when prompted
+```
+
+**2 · Bootstrap** — in the agent, once. First contact scaffolds everything:
+
+```text
+> bootstrap specmine
+```
+
+This creates `.specs/`, the in-repo scripts (`.specmine/scripts/`), the CI
+workflow, and slash commands (`/specmine:scan` … after a session restart;
+`/specmine-scan` in pi; plain language works everywhere). Commit it:
+
+```bash
+git add .specs .specmine .github .claude .pi && git commit -m "chore: specmine scaffolding"
+```
+
+**3 · Scan** — in the agent, heavy, once per module. It surveys the repo,
+shows you the module list, excavates each module into cited requirements, and
+adversarially self-checks its own citations:
+
+```text
+> /specmine:scan            # or: "scan this repo for specs"
+```
+
+Then gate the result before committing:
+
+```bash
+node .specmine/scripts/validate.mjs        # must print PASS
+git add .specs && git commit -m "specs: initial scan"
+```
+
+**4 · Develop against the specs** — when a requirement is added or changes,
+spec and code move in the *same PR*:
+
+```text
+edit the requirement doc  →  implement  →  attach **Sources:** citations
+→  node .specmine/scripts/validate.mjs --regen-index
+→  node .specmine/scripts/validate.mjs   (PASS)
+```
+
+**5 · Check before merge** — in the agent:
+
+```text
+> check PR #214 against the specs    # a PR number, a URL, your branch, or your working tree
+```
+
+You get the verdict table (`SATISFIED` / `VIOLATED` / `STALE_SPEC` / …) in
+chat and in `.specs/check-report.md`. Anything `STALE_SPEC` → update the spec
+in the same PR; anything `NO-SPEC` → scan that module for coverage.
+
+**6 · CI takes over** — from now on, every PR touching code or specs runs
+`validate` + the diff→requirements mapping keylessly. Specs can't rot quietly.
 
 ## ✨ What you get
 
