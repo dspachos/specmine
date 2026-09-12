@@ -143,12 +143,6 @@ the same PR. `validate` fails CI on dead citations and index drift.
 2. `npm test` must pass (add a test for changed behavior)
 3. PR with a description of the behavior change
 
-## ⭐ Show your support
-
-If specmine catches a regression for you, [leave a star](https://github.com/dspachos/specmine/stargazers) — it helps others find it.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=dspachos/specmine&type=Date)](https://star-history.com/#dspachos/specmine&Date)
-
 ## 📄 License
 
 MIT © [Dimitris Spachos](https://github.com/dspachos)
