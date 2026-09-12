@@ -98,6 +98,29 @@ No permanent doc citations are created.
 Re-run whenever a decision document changes: "reconcile specs against
 docs/adr/012.md".
 
+## Workflow: audit (specs × specs coherence)
+
+Trigger: "audit the specs", "/specmine:audit", or after a scan when the user
+wants a quality pass.
+
+1. Run `node .specmine/scripts/audit.mjs` — deterministic smells + candidates
+   land in `.specs/audit-facts.json`.
+2. Judge every **candidate** (DUP_BODY, SHARED_EVIDENCE): read both
+   requirements. Classify: OVERLAP (merge), **CONTRADICTION** (both cannot
+   hold), or DISTINCT (fine).
+3. Sample `max(10, 10%)` of requirements for the judgment-only classes:
+   - **INCOHERENT** — vague or untestable ("should be fast", no observable
+     behavior), internally impossible (max < default), or referencing
+     undefined terms
+   - **CONTRADICTION** across docs (A says MUST 15m, B implies 60m) — search
+     sibling docs in the same domain before concluding
+4. Triage every **open question**: blocking (stops correct implementation or
+   review) vs informational (documentation debt).
+5. Write `.specs/audit-report.md` and present it: summary counts, then
+   findings ranked 🔴 CONFLICT · 🟠 INCOHERENT · 🟡 SMELL · 🔵 INFO, each
+   with requirement IDs, one-line evidence, and a suggested fix. Propose
+   fixes but apply none without approval.
+
 ## Workflow: scan (extract specs from code)
 
 You are reverse-engineering a specification out of working code. Rule zero:

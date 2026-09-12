@@ -151,6 +151,7 @@ in the same PR; anything `NO-SPEC` → scan that module for coverage.
 | 🔍 **Mined, not imagined** | Requirements extracted from what the code *actually does* — survey → per-module excavation → adversarial self-check |
 | 📎 **Every claim cited** | `**Sources:** src/auth/tokens.ts:88` — and a deterministic validator proves each file/line exists |
 | 📜 **Absorbs your ADRs** | Decision docs (ADRs, RFCs, design docs) enrich the specs once via *reconcile* — rationale lands in the requirement prose, conflicts come to you, specs stay self-contained |
+| 🔎 **Audits the specs themselves** | Contradictions, vague/untestable requirements, duplicates, open-question triage — deterministic candidates + agent judgment, ranked report |
 | 🛡️ **Hallucination checks** | The scan grades a sample of its own citations `EXACT / APPROXIMATE / HALLUCINATION` before declaring a module done |
 | ⚖️ **PR verdicts** | `SATISFIED` `VIOLATED` `STALE_SPEC` `NOT_AFFECTED` `UNCLEAR` + `NO-SPEC` for uncovered files |
 | 🤖 **CI gate, keyless** | Validate + diff→requirement mapping run as plain Node scripts on every PR — no LLM, no secrets |
@@ -220,6 +221,12 @@ agent reads the doc, absorbs rationale into the requirement prose, records
 decided-but-unbuilt items as `deferred`, and asks you to adjudicate every
 doc-vs-code conflict. Specs stay self-contained (no permanent doc citations).
 Re-run whenever a decision document changes.
+
+**How do I know the specs themselves are any good?** `audit`: a deterministic
+pass flags duplicates, requirements with no MUST, shared evidence, TODO
+markers and coverage gaps; the agent then judges contradictions,
+vagueness and impossible constraints, triages the open questions, and hands
+you a ranked report (`🔴 conflict · 🟠 incoherent · 🟡 smell · 🔵 info`).
 
 ## 🤝 Contributing
 

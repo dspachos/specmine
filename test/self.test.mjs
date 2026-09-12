@@ -95,6 +95,26 @@ test("check.mjs maps changed files to requirements and flags NO-SPEC", () => {
   assert.match(fs.readFileSync(path.join(dir, ".specs", "check-report.md"), "utf8"), /FR-AUTH-001/);
 });
 
+test("audit.mjs finds planted smells and candidates", () => {
+  const dir = tmp();
+  assert.equal(run("init.mjs", [], dir).status, 0);
+  fs.mkdirSync(path.join(dir, "src"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "a.ts"), "x\ny\n");
+  fs.writeFileSync(
+    path.join(dir, ".specs", "requirements", "functional", "auth.md"),
+    `### FR-AUTH-001 — Token TTL\n\nTokens MUST expire after 15 minutes.\n\n**Confidence:** verified · **Sources:** \`src/a.ts:1\`\n\n### FR-AUTH-002 — Session TTL\n\nTokens MUST expire after 15 minutes.\n\n**Confidence:** verified · **Sources:** \`src/a.ts:1\`\n\n### FR-AUTH-003 — Vague one\n\nThe system should be fast. TODO measure.\n\n## Open Questions\n\n- Which TTL is authoritative?\n`
+  );
+  const r = run("audit.mjs", [], dir);
+  assert.equal(r.status, 0, r.stderr); // report, not a gate
+  const facts = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "audit-facts.json"), "utf8"));
+  const kinds = new Set(facts.findings.map((f) => f.kind));
+  assert.ok(kinds.has("DUP_BODY"), "near-duplicate bodies detected");
+  assert.ok(kinds.has("SHARED_EVIDENCE"), "identical evidence detected");
+  assert.ok(kinds.has("NORMATIVE"), "RFC-2119-less requirement detected");
+  assert.ok(kinds.has("MARKER"), "TODO marker detected");
+  assert.equal(facts.openQuestions[0].count, 1);
+});
+
 test("gitignored spec files are skipped (git ls-files respected)", () => {
   const dir = tmp();
   execSync("git init -q && git config user.email t@t && git config user.name t", { cwd: dir });

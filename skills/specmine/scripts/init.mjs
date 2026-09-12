@@ -41,7 +41,7 @@ if (fs.existsSync(path.join(root, ".specs"))) {
 copyTree(path.join(SKILL_DIR, "scripts"), path.join(root, ".specmine", "scripts"), {
   overwrite: true,
 });
-console.log("Scripts: .specmine/scripts/ (validate.mjs, check.mjs, shared.mjs) — commit these; CI runs them.");
+console.log("Scripts: .specmine/scripts/ (validate.mjs, check.mjs, audit.mjs, shared.mjs) — commit these; CI runs them.");
 
 // 3. CI gate
 install(
@@ -51,7 +51,7 @@ install(
 );
 
 // 4. Slash commands — host-specific niceties (the skill itself is the portable interface)
-for (const c of ["scan", "validate", "index", "check", "reconcile"]) {
+for (const c of ["scan", "validate", "index", "check", "reconcile", "audit"]) {
   const src = path.join(SKILL_DIR, "commands", `${c}.md`);
   install(src, path.join(root, ".claude", "commands", "specmine", `${c}.md`), `command /specmine:${c}`);
   install(src, path.join(root, ".pi", "prompts", `specmine-${c}.md`), `pi prompt /specmine-${c}`);
