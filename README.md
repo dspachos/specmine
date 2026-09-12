@@ -1,59 +1,94 @@
-# specmine
+<div align="center">
 
-Mine the specifications out of a codebase into a linked `.specs/` knowledge
-base — so your AI agent can develop against real requirements instead of
-guessing, and cross-check every PR against them.
+# ⛏️ specmine
 
-**One install command. The skill does the rest.** specmine ships as an
-[Agent Skills](https://agentskills.io) package — no CLI of its own, no API
-keys, no model config. The skill carries everything: workflows, deterministic
-scripts, templates, even the CI gate. First contact bootstraps your repo.
+**Your AI agent is guessing your product's rules. Mine them instead.**
 
-## Install
+specmine turns an existing codebase into a citation-backed requirements
+knowledge base — `.specs/` — that AI coding agents read before writing code,
+and that CI checks every pull request against.
+
+[![skills.sh](https://skills.sh/b/dspachos/specmine)](https://skills.sh/b/dspachos/specmine)
+[![CI](https://img.shields.io/github/actions/workflow/status/dspachos/specmine/ci.yml?style=flat-square&label=CI)](https://github.com/dspachos/specmine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/dspachos/specmine?style=social)](https://github.com/dspachos/specmine/stargazers)
+
+[Quick start](#-quick-start) · [Demo](#-see-it-work) · [How it works](#-how-it-works) · [FAQ](#-faq)
+
+</div>
+
+---
+
+Your codebase already contains its requirements — in routing tables, validators,
+calculations, and the guards around the dangerous stuff. They're just invisible
+to the agent, and to the new hire, and often to you. specmine excavates them
+with your AI agent, cites every claim to `path:line`, and then holds every
+future PR to them.
+
+No API keys. No model config. No npm dependencies.
+
+## 🎬 See it work
+
+A teammate opens a PR that quietly changes the password-reset TTL:
+
+```text
+You: check PR #214 against the specs
+
+specmine check — base: main, changed: 3 files
+  affected requirements: 2
+    FR-AUTH-003  Reset tokens expire after 15 minutes   ← src/auth/tokens.ts
+    FR-AUTH-005  Reset tokens are single-use            ← src/auth/tokens.ts
+
+  ⛔ VIOLATED    FR-AUTH-003 — src/auth/tokens.ts:91 changes expiry 15m → 60m
+  ✅ SATISFIED   FR-AUTH-005 — single-use check untouched
+  📝 NO-SPEC     src/banner.ts — never scanned; want coverage?
+
+  Fix the code, or update FR-AUTH-003 in the same PR if 60m is the new rule.
+  report: .specs/check-report.md
+```
+
+The agent didn't guess — it read the requirement, saw the citation, and diffed
+the hunk. CI runs the same mapping on every PR, keyless.
+
+## 🚀 Quick start
 
 ```bash
 cd your-repo
 npx skills add dspachos/specmine
 ```
 
-Then, in your AI agent (Claude Code, Cursor, pi, Codex, OpenCode, … — any of
-the 75+ agents `skills` supports):
-
 ```text
-> scan this repo for specs       # bootstraps .specs/, then extracts requirements
-> check my diff against the specs
-> check PR #123 against the specs
+# in your AI agent (Claude Code, Cursor, pi, Codex, OpenCode, …)
+> scan this repo for specs          # ① excavates requirements into .specs/
+> check my diff against the specs   # ② before every PR
 ```
 
-First run scaffolds `.specs/`, the in-repo scripts, the CI gate, and slash
-commands where the host supports them.
+That's it — first contact bootstraps `.specs/`, the in-repo scripts, the CI
+gate, and slash commands where the host supports them (`/specmine:scan` … in
+Claude Code, `/specmine-scan` in pi; everywhere else, plain language works).
 
-## What the skill gives you
+## ✨ What you get
 
-| Ask for | What happens |
+| | |
 |---|---|
-| **scan** | survey the repo → excavate modules one by one → adversarial fidelity self-check → cited requirements in `.specs/` |
-| **validate** | deterministic lint: every citation points at a real file/line, IDs unique, links alive, index in sync (exit 1 = broken) |
-| **index** | regenerate `.specs/index.json` from the docs after any spec edit — never hand-edit it |
-| **check** | scripts map the diff (branch, working tree, PR number/URL) to affected requirements; the agent then judges each one |
+| 🔍 **Mined, not imagined** | Requirements extracted from what the code *actually does* — survey → per-module excavation → adversarial self-check |
+| 📎 **Every claim cited** | `**Sources:** src/auth/tokens.ts:88` — and a deterministic validator proves each file/line exists |
+| 🛡️ **Hallucination checks** | The scan grades a sample of its own citations `EXACT / APPROXIMATE / HALLUCINATION` before declaring a module done |
+| ⚖️ **PR verdicts** | `SATISFIED` `VIOLATED` `STALE_SPEC` `NOT_AFFECTED` `UNCLEAR` + `NO-SPEC` for uncovered files |
+| 🤖 **CI gate, keyless** | Validate + diff→requirement mapping run as plain Node scripts on every PR — no LLM, no secrets |
+| 🧩 **75+ agents** | Ships as an [Agent Skills](https://agentskills.io) package via [`npx skills add`](https://github.com/vercel-labs/skills) — zero-dependency Node ≥ 20 |
 
-`check` verdicts: `SATISFIED` · `VIOLATED` · `STALE_SPEC` (behavior changed on
-purpose — the spec must move in the same PR) · `NOT_AFFECTED` · `UNCLEAR`,
-plus `NO-SPEC` for changed files no requirement covers.
+## 🔧 How it works
 
-Slash commands where the host has them (`/specmine:scan` … in Claude Code,
-`/specmine-scan` in pi); everywhere else, plain language works.
-
-## What lands in your repo
-
-```text
-.specs/                knowledge base: ordinary markdown, one requirement per section
-.specmine/scripts/     validate.mjs, check.mjs — zero-dep Node ≥20, committed for CI
-.github/workflows/…    CI gate: validate + check mapping on every PR, keyless
-.claude/, .pi/…        slash commands (host-specific niceties; the skill is the interface)
+```
+            ┌─────────────────┐         every PR          ┌─────────────────┐
+ codebase ─▶│  agent + skill  │──.specs/──▶ CI scripts ──▶│  spec changes   │
+            │  scan (once)    │   markdown + index.json   │  must ride along│
+            └─────────────────┘                           └─────────────────┘
+             judgment, reading              deterministic: validate, map
 ```
 
-A requirement looks like:
+`.specs/` is ordinary markdown. One requirement per section:
 
 ```markdown
 ### FR-AUTH-003 — Reset tokens expire after 15 minutes
@@ -63,46 +98,57 @@ Reset tokens MUST expire 15 minutes after issuance and MUST be single-use.
 **Confidence:** verified · **Sources:** `src/auth/tokens.ts:88 #issueResetToken`
 ```
 
-Atomic, ID'd, RFC-2119 wording, every claim cited `path:line`. An uncited
-claim is a rumor: `validate.mjs` proves each citation exists on disk, and the
-scan's adversarial phase samples its own citations and grades them
-`EXACT / APPROXIMATE / HALLUCINATION` before declaring a module done.
+`index.json` maps every cited file → its requirement IDs, so checking a diff
+means reading *only* the affected docs — never the whole knowledge base.
+Deterministic work is scripts (`.specmine/scripts/`, committed to your repo);
+judgment is the agent's. [CONVENTIONS.md](skills/specmine/specs-tpl/CONVENTIONS.md)
+is the full format contract.
 
-## The loop
+**The loop:** ① scan once (heavy, per module) → ② a PR that changes behavior
+must change its spec in the same PR → ③ check before merge; CI enforces the floor.
 
-1. **Scan once** (heavy, per module) → `.specs/` records what the code
-   *actually does* — including the open questions nobody could answer.
-2. **Develop** — a PR that changes behavior **must** change its spec in the
-   same PR: edit the requirement → regenerate the index → validate must pass.
-3. **Gate** — check before merging (branch, PR number, or URL); CI runs
-   validate + the deterministic mapping on every PR touching code or specs.
+## 🤔 How does it compare?
 
-## Why this shape
+| | specmine | spec-first tools ([spec-kit](https://github.com/github/spec-kit)…) | docs/README |
+|---|---|---|---|
+| Source of truth | the **existing** code, mined | the spec, written *before* code | whoever last edited |
+| Claims | cited `path:line`, machine-validated | linked to issues | uncited |
+| Enforcement | agent verdicts + keyless CI gate | ritual/process | none |
+| Best at | brownfield, living repos | greenfield features | aspiration |
 
-- **Scripts over prose for the deterministic parts.** An agent grading its own
-  citations has a conflict of interest; `validate.mjs` doesn't. The scripts
-  live in your repo at `.specmine/scripts/`, so every agent and CI run the
-  exact same code, forever.
-- **Judgment stays with the agent.** Whether a hunk *violates* a requirement
-  is reading comprehension with repo context — the agent's job, bounded to
-  just the affected docs via `index.json`.
-- **`.specs/` is for humans too.** Plain markdown, stable IDs, reviewable
-  diffs: the spec change is visible in the same PR as the code change.
+Greenfield projects want spec-kit; specmine is for the code you already have.
+They compose well.
 
-## Refresh / update
+## ❓ FAQ
 
-```bash
-npx skills update specmine        # pull the latest skill
-node <skill-dir>/scripts/init.mjs # re-run bootstrap (idempotent; .specs/ untouched)
-```
+**Does specmine call an LLM?** No. The package is deterministic. All reading,
+extraction, and verdict judgment happens in *your* agent, on your quota.
 
-## Requirements
+**Which agents work?** Any [Agent Skills](https://agentskills.io) host —
+Claude Code, Cursor, pi, Codex, OpenCode, and 70+ more via `npx skills add`.
 
-- Node ≥ 20 (for the scripts; no npm dependencies)
-- An AI agent supporting the [Agent Skills standard](https://agentskills.io)
-- git — file enumeration goes through `git ls-files`, so `.gitignore` is
-  respected by definition
+**Which languages?** Any. Citations are `path:line`; the validator is
+language-agnostic. It does respect `.gitignore` (enumeration goes through
+`git ls-files`).
 
-## License
+**What does a scan cost?** The heavy part, once: an agent read-through per
+module. Checks afterwards are cheap — the index bounds reading to affected docs.
 
-MIT
+**What if specs go stale?** `check` returns `STALE_SPEC` — update the spec in
+the same PR. `validate` fails CI on dead citations and index drift.
+
+## 🤝 Contributing
+
+1. Fork → branch (`feat/my-feature`)
+2. `npm test` must pass (add a test for changed behavior)
+3. PR with a description of the behavior change
+
+## ⭐ Show your support
+
+If specmine catches a regression for you, [leave a star](https://github.com/dspachos/specmine/stargazers) — it helps others find it.
+
+[![Star History Chart](https://api.star-history.com/svg?repos=dspachos/specmine&type=Date)](https://star-history.com/#dspachos/specmine&Date)
+
+## 📄 License
+
+MIT © [Dimitris Spachos](https://github.com/dspachos)

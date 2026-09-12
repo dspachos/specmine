@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - name: Skill installs and bootstraps a fresh repo
+        run: |
+          mkdir /tmp/fresh && cd /tmp/fresh && git init -q
+          node skills/specmine/scripts/init.mjs
+          node .specmine/scripts/validate.mjs
