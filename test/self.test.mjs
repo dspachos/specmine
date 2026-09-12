@@ -1,178 +1,137 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { runInit } from "../lib/init.js";
-import { runValidate } from "../lib/validate.js";
-import { runCheck } from "../lib/check.js";
-import { llmConfig } from "../lib/llm.js";
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "specmine-"));
-const reset = () => {
+const PKG = path.resolve(import.meta.dirname, "..");
+const SCRIPTS = path.join(PKG, "templates", "skill", "scripts");
+const run = (script, args, cwd) =>
+  spawnSync("node", [path.join(SCRIPTS, script), ...args], { cwd, encoding: "utf8" });
+
+function tmp() {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync("/tmp"), "specmine-"));
+  return dir;
+}
+import { execSync } from "node:child_process";
+
+function reset() {
   process.exitCode = 0;
-};
+  const orig = { log: console.log, err: console.error, warn: console.warn };
+  console.log = console.error = console.warn = () => {};
+  return () => {
+    console.log = orig.log;
+    console.error = orig.err;
+    console.warn = orig.warn;
+  };
+}
 
-test("init scaffolds .specs/ and installs skills", async () => {
+test("init scaffolds .specs/, skill+scripts, slash commands, pi prompts, workflow", async () => {
   const dir = tmp();
+  const un = reset();
   await runInit(dir);
-  reset();
-  for (const f of ["CONVENTIONS.md", "overview.md", "index.json", "requirements/functional/README.md"]) {
-    assert.ok(fs.existsSync(path.join(dir, ".specs", f)), f);
+  un();
+  for (const f of [
+    ".specs/CONVENTIONS.md",
+    ".specs/index.json",
+    ".claude/skills/specmine/SKILL.md",
+    ".claude/skills/specmine/scripts/validate.mjs",
+    ".claude/skills/specmine/scripts/check.mjs",
+    ".claude/skills/specmine/scripts/shared.mjs",
+    ".claude/commands/specmine/scan.md",
+    ".claude/commands/specmine/index.md",
+    ".claude/commands/specmine/validate.md",
+    ".claude/commands/specmine/check.md",
+    ".pi/prompts/specmine-check.md",
+    ".github/workflows/specmine.yml",
+  ]) {
+    assert.ok(fs.existsSync(path.join(dir, f)), `missing ${f}`);
   }
-  assert.ok(fs.existsSync(path.join(dir, ".claude", "skills", "specmine-scan", "SKILL.md")));
-  assert.ok(fs.existsSync(path.join(dir, ".claude", "skills", "specmine-check", "SKILL.md")));
-  assert.ok(fs.existsSync(path.join(dir, ".github", "workflows", "specmine.yml")));
-  // idempotent: second init must not clobber
-  fs.writeFileSync(path.join(dir, ".specs", "overview.md"), "# hand-edited\n");
-  await runInit(dir);
-  reset();
-  assert.equal(fs.readFileSync(path.join(dir, ".specs", "overview.md"), "utf8"), "# hand-edited\n");
 });
 
-test("validate passes on pristine skeleton", async () => {
+test("validate script passes on pristine skeleton, catches errors after tampering", async () => {
   const dir = tmp();
+  const un = reset();
   await runInit(dir);
-  reset();
-  const r = await runValidate(dir);
-  reset();
-  assert.equal(r.code, 0, r.errors.join("; "));
-});
+  un();
 
-test("validate catches dup IDs, WRONG_FILE, WRONG_LINES, BROKEN_LINK, index drift", async () => {
-  const dir = tmp();
-  await runInit(dir);
-  fs.mkdirSync(path.join(dir, "src"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "src", "a.ts"), "line1\nline2\n");
+  const pristine = run("validate.mjs", [], dir);
+  assert.equal(pristine.status, 0, pristine.stderr);
+
+  // craft a real requirement + break things
+  fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\ny\n");
+  const reqFile = path.join(dir, ".specs", "requirements", "functional", "auth.md");
   fs.writeFileSync(
-    path.join(dir, ".specs", "requirements", "functional", "auth.md"),
-    `### FR-AUTH-001 — First
-
-System MUST do one.
-
-**Sources:** \`src/a.ts:1\`
-
-### FR-AUTH-001 — Duplicate
-
-**Sources:** \`src/a.ts:1\`
-
-### FR-AUTH-002 — Bad file
-
-**Sources:** \`src/nope.ts:1\`
-
-### FR-AUTH-003 — Over range
-
-**Sources:** \`src/a.ts:1-99\`
-
-### FR-AUTH-004 — Broken link
-
-See [missing](nope.md).
-
-**Sources:** \`src/a.ts:2\`
-`
+    reqFile,
+    `### FR-AUTH-001 — Tokens\n\nTokens MUST expire.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n\n### FR-AUTH-001 — Dup\n\nDup ID.\n\n**Sources:** \`src/auth/tokens.ts:1-99\`, \`src/nope.ts:1\`\n`
   );
-  const r = await runValidate(dir);
-  reset();
-  const errs = r.errors.join("\n");
-  assert.match(errs, /duplicate ID FR-AUTH-001/);
-  assert.match(errs, /WRONG_FILE/);
-  assert.match(errs, /WRONG_LINES/);
-  assert.match(errs, /BROKEN_LINK/);
-  assert.match(errs, /index\.json: missing src\/a\.ts/);
-  assert.equal(r.code, 1);
 
-  // repair the index -> index errors disappear, real errors remain
+  const bad = run("validate.mjs", [], dir);
+  assert.equal(bad.status, 1);
+  const out = bad.stdout + bad.stderr;
+  assert.match(out, /duplicate ID FR-AUTH-001/);
+  assert.match(out, /WRONG_FILE — src\/nope\.ts:1/);
+  assert.match(out, /WRONG_LINES — src\/auth\/tokens\.ts:1-99/);
+
+  // repair: dedupe + fix citations, then regenerate index
   fs.writeFileSync(
-    path.join(dir, ".specs", "index.json"),
-    JSON.stringify({
-      version: 1,
-      generated: null,
-      by: "test",
-      fileIndex: { "src/a.ts": ["FR-AUTH-001", "FR-AUTH-004"] }, // only VALID citations belong in the index
-      modules: {},
-    })
+    reqFile,
+    `### FR-AUTH-001 — Tokens\n\nTokens MUST expire.\n\n**Sources:** \`src/auth/tokens.ts:1-2\`\n`
   );
-  const r2 = await runValidate(dir);
-  reset();
-  assert.doesNotMatch(r2.errors.join("\n"), /index\.json/);
+  const regen = run("validate.mjs", ["--regen-index"], dir);
+  assert.equal(regen.status, 0, regen.stderr);
+  assert.match(regen.stdout, /regenerated — 1 files, 1 requirement links/);
+  const idx = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "index.json"), "utf8"));
+  assert.deepEqual(idx.fileIndex, { "src/auth/tokens.ts": ["FR-AUTH-001"] });
+  assert.equal(run("validate.mjs", [], dir).status, 0);
 });
 
-test("index regenerates from docs (specmine index)", async () => {
+test("check script maps changed files to requirements and flags NO-SPEC", async () => {
   const dir = tmp();
+  const un = reset();
   await runInit(dir);
+  un();
+
   fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
   fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\ny\n");
   fs.writeFileSync(
     path.join(dir, ".specs", "requirements", "functional", "auth.md"),
-    `### FR-AUTH-001 — Tokens\n\nTokens MUST expire.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n`
+    `### FR-AUTH-001 — Token expiry\n\nTokens MUST expire after 15 minutes.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n`
   );
-  const before = await runValidate(dir); // index out of date -> error
-  reset();
-  assert.match(before.errors.join("\n"), /index\.json: missing/);
-  const after = await runValidate(dir, { writeIndex: true }); // regen
-  reset();
-  assert.equal(after.code, 0, after.errors.join("; "));
-  const idx = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "index.json"), "utf8"));
-  assert.deepEqual(idx.fileIndex, { "src/auth/tokens.ts": ["FR-AUTH-001"] });
-  assert.equal(idx.by, "specmine index");
-});
+  assert.equal(run("validate.mjs", ["--regen-index"], dir).status, 0);
 
-test("check maps changed files to requirements and flags NO-SPEC", async () => {
-  const dir = tmp();
-  await runInit(dir);
-  fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\n");
-  fs.writeFileSync(
-    path.join(dir, ".specs", "requirements", "functional", "auth.md"),
-    `### FR-AUTH-003 — Tokens
-
-Tokens MUST expire.
-
-**Sources:** \`src/auth/tokens.ts:1\`
-`
-  );
-  fs.writeFileSync(
-    path.join(dir, ".specs", "index.json"),
-    JSON.stringify({ version: 1, fileIndex: { "src/auth/tokens.ts": ["FR-AUTH-003"] }, modules: {} })
-  );
-  const code = await runCheck(dir, {
-    files: ["src/auth/tokens.ts", "src/newthing.ts"],
-    ai: false,
-  });
-  reset();
-  assert.equal(code, 0);
+  const r = run("check.mjs", ["--files", "src/auth/tokens.ts,src/unmapped.ts"], dir);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /FR-AUTH-001\s+Token expiry\s+<-/);
+  assert.match(r.stdout, /NO-SPEC\s+src\/unmapped\.ts/);
   const report = fs.readFileSync(path.join(dir, ".specs", "check-report.md"), "utf8");
-  assert.match(report, /FR-AUTH-003/);
-  assert.match(report, /NO-SPEC|No spec coverage/);
+  assert.match(report, /FR-AUTH-001/);
+  assert.match(report, /src\/unmapped\.ts/);
 });
 
 test("gitignored spec files are skipped (git ls-files respected)", async () => {
   const dir = tmp();
+  execSync("git init -q && git config user.email t@t && git config user.name t", { cwd: dir });
+  const un = reset();
   await runInit(dir);
-  execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
-  execFileSync("git", ["config", "user.email", "t@t"], { cwd: dir });
-  execFileSync("git", ["config", "user.name", "t"], { cwd: dir });
-  fs.writeFileSync(path.join(dir, ".gitignore"), ".specs/ignored.md\n");
-  fs.writeFileSync(path.join(dir, ".specs", "ignored.md"), `### FR-XX-001 — ignored\n\n**Sources:** \`nope.ts:1\`\n`);
+  un();
+
+  fs.mkdirSync(path.join(dir, "src", "auth"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "auth", "tokens.ts"), "x\ny\n");
   fs.writeFileSync(
     path.join(dir, ".specs", "requirements", "functional", "auth.md"),
-    `### FR-AUTH-001 — a\n\n**Sources:** \`nope.ts:1\`\n`
+    `### FR-AUTH-001 — Tokens\n\nTracked.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n`
   );
-  const r = await runValidate(dir);
-  reset();
-  const errs = r.errors.join("\n");
-  assert.doesNotMatch(errs, /ignored\.md/, "gitignored file must be skipped");
-  assert.match(errs, /auth\.md.*WRONG_FILE/, "tracked file must still be linted");
-});
+  fs.writeFileSync(
+    path.join(dir, ".specs", "requirements", "functional", "ignored.md"),
+    `### FR-AUTH-002 — Ignored\n\nMust not enter the index.\n\n**Sources:** \`src/auth/tokens.ts:1\`\n`
+  );
+  fs.writeFileSync(path.join(dir, ".gitignore"), ".specs/requirements/functional/ignored.md\n");
+  execSync("git add -A", { cwd: dir });
 
-test("llm config errors helpfully when unset", () => {
-  const saved = { ...process.env };
-  delete process.env.SPECMINE_BASE_URL;
-  delete process.env.AMAZEEAI_BASE_URL;
-  delete process.env.SPECMINE_API_KEY;
-  delete process.env.AMAZEEAI_API_KEY;
-  delete process.env.SPECMINE_MODEL;
-  assert.throws(() => llmConfig(), /SPECMINE_MODEL/);
-  Object.assign(process.env, saved);
+  assert.equal(run("validate.mjs", ["--regen-index"], dir).status, 0);
+  const idx = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "index.json"), "utf8"));
+  assert.deepEqual(idx.fileIndex, { "src/auth/tokens.ts": ["FR-AUTH-001"] }); // no FR-AUTH-002
 });

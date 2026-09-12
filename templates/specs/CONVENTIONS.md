@@ -31,7 +31,7 @@ Reset tokens MUST expire within 15 minutes of issuance and MUST be single-use.
 - **Atomic**: one requirement per heading. If a statement needs "and", split it.
 - **Checkable wording**: MUST / MUST NOT / SHOULD (RFC 2119). No "should probably".
 - **Cite or fail**: every behavioral claim has a `Sources:` line. A requirement
-  without sources is a rumor; `npx specmine validate` flags it.
+  without sources is a rumor; the validate script flags it.
 - **Confidence:** `verified` = read directly in code; `inferred` = deduced from
   config, tests, or infrastructure (NFRs are often `inferred`).
 

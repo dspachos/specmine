@@ -1,105 +1,74 @@
 # specmine
 
-Mine specifications and requirements out of an existing codebase into a linked
-`.specs/` knowledge base — so AI agents work from what the system *actually
-does*, and every PR can be cross-checked against it.
+Mine specifications out of a codebase into a linked `.specs/` knowledge base —
+then let your AI agent consult it and cross-check every change against it.
 
-```
-code ──(specmine scan, run by your agent)──▶ .specs/   ◀──(read before changes)
-                                             │
- PR diff ──(specmine check)──────────────────┴──▶ SATISFIED / VIOLATED / STALE_SPEC / NO-SPEC
-```
+**Philosophy: the CLI installs, the agent works.** `npx specmine init`
+scaffolds everything and gets out of the way. All specmine commands are agent
+skills/slash commands; the deterministic parts (lint, index, diff mapping) are
+zero-dependency Node scripts shipped *inside the skill folder* and committed to
+your repo — so your agent, your teammates' agents, and CI all run the exact
+same scripts.
 
-## Quickstart
-
-```bash
-npx specmine init        # scaffold .specs/ + install agent skills (.claude/skills/)
-```
-
-Then, in your AI agent (Claude Code, pi, or any SKILL.md-compatible host):
-
-> run specmine scan
-
-That's the heavy lift: your agent surveys the repo, excavates modules
-one at a time, writes atomic requirements **every one cited to `file:line`**,
-self-audits a sample of its own citations, and regenerates `.specs/index.json`.
+## Install
 
 ```bash
-npx specmine validate    # deterministic lint: citations, IDs, links, index sync
-npx specmine index        # regenerate index.json after editing requirement docs
-npx specmine check       # diff → affected requirements (no AI, no keys)
-npx specmine check --ai  # + LLM verdicts, headless (CI-ready)
+cd your-repo
+npx github:dspachos/specmine init
 ```
 
-Commit `.specs/` — it's a versioned artifact. Review spec diffs in PRs like code.
-
-## What lands in `.specs/`
+Creates:
 
 ```
-.specs/
-├── CONVENTIONS.md             # the format contract (read this first)
-├── overview.md                # purpose, stack, boundaries, module map
-├── requirements/
-│   ├── functional/<domain>.md # FR-AUTH-003 …
-│   ├── non-functional.md      # NFR-SEC-001 … (confidence: inferred)
-│   ├── domain-rules.md        # BR-012 … business logic a rewrite must not lose
-│   └── constraints.md         # C-001 … regulatory/contractual/technical
-├── data-model.md              # entities + invariants
-├── api.md                     # public contracts and side effects
-├── glossary.md
-└── index.json                 # generated file→requirement map (powers check)
+.specs/                            knowledge base skeleton + format contract
+.claude/skills/specmine/           the skill: SKILL.md + scripts/{validate,check,shared}.mjs
+.claude/commands/specmine/         /specmine:scan /specmine:validate /specmine:index /specmine:check
+.pi/prompts/                       same commands, flat names for pi (/specmine-scan …)
+.github/workflows/specmine.yml     CI gate running the same scripts, keyless
 ```
 
-Every requirement is atomic, MUST/SHOULD-worded, and cited:
+## Use (in your AI agent)
 
-```markdown
-### FR-AUTH-003 — Reset tokens expire after 15 minutes
+| Command | What happens |
+|---|---|
+| `/specmine:scan` | survey → excavate modules one by one → adversarial fidelity self-check → cited requirements in `.specs/` |
+| `/specmine:validate` | lint: citation file/lines exist, unique IDs, cross-doc links, index sync (exit 1 = broken) |
+| `/specmine:index` | regenerate `.specs/index.json` from the docs after any spec edit |
+| `/specmine:check` | deterministic diff→requirement mapping via the scripts, then the agent judges: SATISFIED / VIOLATED / STALE_SPEC / NOT_AFFECTED / UNCLEAR + NO-SPEC |
 
-Reset tokens MUST expire within 15 minutes of issuance and MUST be single-use.
+Natural language works too — the skill triggers on *"scan this repo for
+requirements"*, *"check my diff against the specs"*, *"check PR #123"*.
 
-**Confidence:** verified · **Sources:** `src/auth/tokens.ts:88 #issueToken`
-```
-
-The `#symbol` anchor survives line drift; `validate` checks files and line
-ranges deterministically; the scan skill's fidelity judge samples citations
-semantically (`EXACT / APPROXIMATE / WRONG_LINES / WRONG_FILE / HALLUCINATION`).
-
-## Why a skill does the scanning (and the CLI doesn't)
-
-The CLI is deliberately dumb: scaffolding + deterministic linting, zero
-dependencies, zero API keys. Context management for reading a whole codebase is
-exactly what coding agents already do well — so scanning runs *in your agent*,
-with your model, your tools, your subagents. The one place headless AI pays for
-itself is `check --ai`: the diff plus affected requirement docs fits in a single
-completion, so the PR gate runs in CI without an agent.
-
-## AI endpoint for `check --ai` (any OpenAI-compatible API)
+Scripts are also directly runnable (that's what CI does):
 
 ```bash
-export AMAZEEAI_BASE_URL=https://…/v1
-export AMAZEEAI_API_KEY=…
-export SPECMINE_MODEL=<model-id>   # list: curl -H "Authorization: Bearer $KEY" $BASE_URL/models
-# or fully generic: SPECMINE_BASE_URL / SPECMINE_API_KEY
+node .claude/skills/specmine/scripts/validate.mjs            # lint
+node .claude/skills/specmine/scripts/validate.mjs --regen-index
+node .claude/skills/specmine/scripts/check.mjs --base origin/main
+node .claude/skills/specmine/scripts/check.mjs --files src/a.ts,src/b.ts
 ```
 
-Exit code 1 on any `VIOLATED` requirement — usable as a merge gate.
-Report lands in `.specs/check-report.md` (consider gitignoring it).
+## The loop
 
-## Other agents
+1. **Scan once** (heavy) → `.specs/` holds what the code *actually does*, every
+   claim cited `path:line`.
+2. **Develop**: a PR that changes behavior **must** change its spec in the same
+   PR. Edit the requirement doc → `/specmine:index` → `/specmine:validate`.
+3. **Gate**: before merging, `/specmine:check` (works on your branch, a PR
+   number, or a PR URL). CI runs validate + the deterministic mapping on every
+   PR touching code or specs.
 
-Skills are plain `SKILL.md` — copy `.claude/skills/specmine-{scan,check}` into
-your host's skill directory (e.g. `~/.pi/agent/skills/` for pi). File
-enumeration inside the skills uses `git ls-files`, so `.gitignore` is always
-respected.
+## Why citations everywhere
 
-## Credits & prior art
+An uncited claim in `.specs/` is a rumor. The validator proves every citation
+points at a real file and line range; the scan skill's adversarial phase
+samples its own citations and grades them `EXACT / APPROXIMATE / HALLUCINATION`.
+Trust, but verify — deterministically where possible, judgmentately where not.
 
-- [dds](https://github.com/lucasacoutinho/dds) — citation-first extraction and
-  the adversarial fidelity-judge pattern; ours is a leaner cousin.
-- [spec-gen](https://github.com/mhenke/spec-gen) — significance-scoring
-  heuristics (embedded in our survey prompt, not as code).
-- [spec-kit](https://github.com/github/spec-kit) — proof that versioned
-  markdown specs are a workable source of truth (ours go the other direction).
+## Requirements
 
-Status: early. The check verdicts are advisory — treat them as a very well
-read reviewer, not a compiler.
+- Node ≥ 20 (scripts only; no npm dependencies)
+- An AI agent that supports the Agent Skills standard (Claude Code, pi, …) —
+  skills live in `.claude/skills/`, pi users can `/skill:specmine` or use the
+  flat prompts installed to `.pi/prompts/`.
+- git (file enumeration respects .gitignore via `git ls-files`)

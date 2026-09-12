@@ -1,7 +1,7 @@
-# specmine gate: lint the .specs/ knowledge base and cross-check PRs.
-# The --ai verdict layer activates automatically once these repo secrets exist:
-#   AMAZEEAI_BASE_URL, AMAZEEAI_API_KEY, SPECMINE_MODEL
-# (or SPECMINE_BASE_URL/SPECMINE_API_KEY for any OpenAI-compatible endpoint)
+# specmine gate: lint the .specs/ knowledge base and map PR changes to
+# requirements. Runs the skill's scripts directly — they are committed in-repo.
+# Verdicts (SATISFIED/VIOLATED) are judgment: that's the review agent's job,
+# triggered via /specmine:check — CI here enforces the deterministic floor.
 name: specmine
 
 on:
@@ -31,23 +31,7 @@ jobs:
           node-version: 22
 
       - name: Validate .specs (citations, IDs, links, index sync)
-        run: npx --yes github:dspachos/specmine validate
+        run: node .claude/skills/specmine/scripts/validate.mjs
 
-      - name: Check changed files against requirements
-        run: npx --yes github:dspachos/specmine check
-        env:
-          AMAZEEAI_BASE_URL: ${{ secrets.AMAZEEAI_BASE_URL }}
-          AMAZEEAI_API_KEY: ${{ secrets.AMAZEEAI_API_KEY }}
-          SPECMINE_MODEL: ${{ secrets.SPECMINE_MODEL }}
-
-      - name: AI verdicts (runs only when endpoint secrets are set)
-        run: |
-          if [ -n "$AMAZEEAI_BASE_URL" ] && [ -n "$AMAZEEAI_API_KEY" ] && [ -n "$SPECMINE_MODEL" ]; then
-            npx --yes github:dspachos/specmine check --ai
-          else
-            echo "Endpoint secrets not set — skipping AI verdicts (deterministic check already ran)."
-          fi
-        env:
-          AMAZEEAI_BASE_URL: ${{ secrets.AMAZEEAI_BASE_URL }}
-          AMAZEEAI_API_KEY: ${{ secrets.AMAZEEAI_API_KEY }}
-          SPECMINE_MODEL: ${{ secrets.SPECMINE_MODEL }}
+      - name: Map changed files to requirements
+        run: node .claude/skills/specmine/scripts/check.mjs

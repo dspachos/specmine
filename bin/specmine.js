@@ -1,57 +1,23 @@
 #!/usr/bin/env node
-import { parseArgs } from "node:util";
 import { runInit } from "../lib/init.js";
-import { runValidate } from "../lib/validate.js";
-import { runCheck } from "../lib/check.js";
 
-const HELP = `specmine — mine specifications out of a codebase, for AI agents
+const HELP = `specmine — spec-mining scaffolder for AI agents
 
 Usage:
-  specmine init [dir]             Scaffold .specs/ knowledge base + install agent skills
-  specmine validate [dir]         Lint .specs/: citations, IDs, links, index sync
-  specmine index [dir]            Regenerate .specs/index.json from the docs
-  specmine check [dir] [options]  Map code changes (diff or --files) to requirements
-                                  --base <ref>    git base ref (default origin/main, then main)
-                                  --files a,b,c   explicit changed files instead of git
-                                  --ai            add LLM verdicts (needs endpoint env vars)
-  specmine help                   Show this help
+  specmine init [dir]    Scaffold .specs/, install the specmine skill
+                         (with deterministic scripts), slash commands, and CI gate
 
-Extraction (scan) is done by your AI agent via the installed skills:
-"specmine scan" and "specmine check". This CLI scaffolds, lints
-deterministically, and can cross-check PRs headlessly with --ai.
+Everything else is agent-side, via the installed skill:
+  /specmine:scan        extract requirements from code (survey → excavate → judge)
+  /specmine:check       cross-check a diff/branch/PR against .specs/
+  /specmine:validate    lint .specs/ (citations, IDs, links, index sync)
+  /specmine:index       regenerate .specs/index.json
 
-AI endpoint (OpenAI-compatible, optional — used by check --ai):
-  AMAZEEAI_BASE_URL / AMAZEEAI_API_KEY      or
-  SPECMINE_BASE_URL / SPECMINE_API_KEY / SPECMINE_MODEL
+Deterministic parts run scripts inside .claude/skills/specmine/scripts/ —
+committed to your repo, so CI uses the same scripts keylessly.
 `;
 
-async function main() {
-  const { positionals, values } = parseArgs({
-    allowPositionals: true,
-    options: {
-      base: { type: "string" },
-      files: { type: "string" },
-      ai: { type: "boolean" },
-    },
-    args: process.argv.slice(2),
-  });
-  const [cmd, dir = "."] = positionals;
+const [cmd = "help", dir = "."] = process.argv.slice(2);
 
-  try {
-    if (cmd === "init") await runInit(dir);
-    else if (cmd === "validate") await runValidate(dir);
-    else if (cmd === "index") await runValidate(dir, { writeIndex: true });
-    else if (cmd === "check")
-      process.exitCode = await runCheck(dir, {
-        base: values.base,
-        files: values.files?.split(",").map((f) => f.trim()).filter(Boolean),
-        ai: values.ai,
-      });
-    else console.log(HELP);
-  } catch (err) {
-    console.error(`specmine: ${err.message}`);
-    process.exitCode = 1;
-  }
-}
-
-main();
+if (cmd === "init") await runInit(dir);
+else console.log(HELP);
