@@ -100,14 +100,25 @@ node .specmine/scripts/validate.mjs        # must print PASS
 git add .specs && git commit -m "specs: initial scan"
 ```
 
-**4 · Develop against the specs** — when a requirement is added or changes,
-spec and code move in the *same PR*:
+**4 · Develop against the specs** — when behavior changes, spec and code move
+in the *same PR*. Describe the requirement to the agent:
 
 ```text
-edit the requirement doc  →  implement  →  attach **Sources:** citations
-→  node .specmine/scripts/validate.mjs --regen-index
-→  node .specmine/scripts/validate.mjs   (PASS)
+> new requirement: token TTL must be configurable via settings.
+  Add it to the specs and implement it.
 ```
+
+The agent writes the requirement doc (`FR-AUTH-006 — Token TTL is
+configurable`), implements the code, and attaches the `**Sources:**`
+citations. Then, in the terminal (or ask the agent to run them):
+
+```bash
+node .specmine/scripts/validate.mjs --regen-index   # rebuild index.json from the docs
+node .specmine/scripts/validate.mjs                 # must print PASS
+```
+
+Open **one PR** containing both the code diff and the spec diff — that
+side-by-side is what reviewers (and future agents) will read.
 
 **5 · Check before merge** — in the agent:
 
