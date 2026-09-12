@@ -81,3 +81,11 @@ any spec edit (the scan skill does this automatically; `validate` verifies sync)
 | `STALE_SPEC` | Change deliberately alters documented behavior — update the spec in the same PR |
 | `NOT_AFFECTED` | Touched file, but not this requirement's behavior |
 | `NO-SPEC` | Changed file has no requirements at all → scan that module |
+
+## External documents (ADRs, RFCs, design docs)
+
+Documents are **inputs, not references**. Knowledge from decision documents is
+absorbed into requirement prose once, via the reconcile workflow — with
+conflicts adjudicated by the user at that moment. Requirements do not carry
+permanent document citations; they stay self-contained and code-first.
+Re-run reconcile whenever a decision document changes.

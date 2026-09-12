@@ -182,6 +182,7 @@ if (regen) {
         by: "specmine index",
         fileIndex,
         modules: prev.modules ?? {},
+        reconciled: prev.reconciled ?? {},
       },
       null,
       2

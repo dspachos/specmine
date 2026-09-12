@@ -65,6 +65,39 @@ number/URL, "does this change break any requirements".
    `.specs/check-report.md`. Recommended actions in order:
    fix code → update spec (same PR) → scan uncovered module.
 
+## Workflow: reconcile (external documents × specs)
+
+Trigger: "reconcile specs against docs/adr/…", "cross-check our ADRs/RFCs/design
+docs with the specs", or automatically offered at the end of a scan when
+decision documents exist (docs/, adr/, rfcs/, design/ — ADRs, RFCs, PRDs,
+decision records).
+
+Model: documents are **inputs, not references**. Their knowledge is absorbed
+into the spec prose once; specs stay self-contained and code-first afterwards.
+No permanent doc citations are created.
+
+1. Read the document (or directory). Extract its decisions/claims: rules,
+   constraints, rationale, rejected alternatives, dates/status if present.
+2. Match each claim to existing requirements (by topic, not ID guessing).
+3. Four outcomes per claim — **conflicts always go to the user, never silently resolved**:
+   - **Enrich** — doc adds rationale/constraint the spec lacks → write it into
+     the requirement body as plain prose (e.g. "Rationale: 15m TTL is a
+     brute-force mitigation, decided 2024-03"). The spec is now self-contained.
+   - **Confirm** — doc agrees with spec → nothing to change (note confidence).
+   - **Conflict** — doc says X, code/spec says Y → ASK the user which is
+     authoritative. Then either update the spec (doc wins) or keep code-truth
+     and note the doc is outdated (suggest updating the doc too).
+   - **Gap** — doc decides something no code implements → ask the user: record
+     under "## Decided, not implemented" in the relevant doc with
+     `Confidence: deferred`, or skip.
+4. Record the run: set `reconciled["<docPath>"] = <iso-date>` in
+   `index.json` so future recons know the last-covered state. Reconcile is
+   idempotent per doc — re-running after the doc changes re-checks and asks
+   only about new conflicts.
+
+Re-run whenever a decision document changes: "reconcile specs against
+docs/adr/012.md".
+
 ## Workflow: scan (extract specs from code)
 
 You are reverse-engineering a specification out of working code. Rule zero:
@@ -78,6 +111,9 @@ Ground rules:
    uncited claim is a hallucination until proven otherwise.
 3. One module at a time: excavate → judge → next.
 4. Read code line-by-line; comments lie, code is the only witness.
+5. External decision documents (ADRs, RFCs, design docs) are handled by the
+   **reconcile** workflow after excavation — never mixed into excavation
+   itself. At the end of Phase 4, if decision docs exist, offer to reconcile.
 
 Significance for survey ordering — high: `router|controller|service|schema|
 validator|policy|middleware|model|migration|handler|config`; low/skip:

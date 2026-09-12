@@ -51,7 +51,7 @@ install(
 );
 
 // 4. Slash commands — host-specific niceties (the skill itself is the portable interface)
-for (const c of ["scan", "validate", "index", "check"]) {
+for (const c of ["scan", "validate", "index", "check", "reconcile"]) {
   const src = path.join(SKILL_DIR, "commands", `${c}.md`);
   install(src, path.join(root, ".claude", "commands", "specmine", `${c}.md`), `command /specmine:${c}`);
   install(src, path.join(root, ".pi", "prompts", `specmine-${c}.md`), `pi prompt /specmine-${c}`);

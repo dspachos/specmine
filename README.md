@@ -100,6 +100,17 @@ node .specmine/scripts/validate.mjs        # must print PASS
 git add .specs && git commit -m "specs: initial scan"
 ```
 
+**3½ · Reconcile (optional)** — have decision documents? ADRs, RFCs, design
+docs get cross-checked against the specs once — their rationale is absorbed
+into the requirement prose, decided-but-unbuilt items are recorded as
+`deferred`, and every doc-vs-code conflict is brought to *you* for a ruling:
+
+```text
+> reconcile the specs against docs/adr/
+```
+
+Docs are inputs, not references — re-run this whenever a decision doc changes.
+
 **4 · Develop against the specs** — when behavior changes, spec and code move
 in the *same PR*. Describe the requirement to the agent:
 
@@ -139,6 +150,7 @@ in the same PR; anything `NO-SPEC` → scan that module for coverage.
 |---|---|
 | 🔍 **Mined, not imagined** | Requirements extracted from what the code *actually does* — survey → per-module excavation → adversarial self-check |
 | 📎 **Every claim cited** | `**Sources:** src/auth/tokens.ts:88` — and a deterministic validator proves each file/line exists |
+| 📜 **Absorbs your ADRs** | Decision docs (ADRs, RFCs, design docs) enrich the specs once via *reconcile* — rationale lands in the requirement prose, conflicts come to you, specs stay self-contained |
 | 🛡️ **Hallucination checks** | The scan grades a sample of its own citations `EXACT / APPROXIMATE / HALLUCINATION` before declaring a module done |
 | ⚖️ **PR verdicts** | `SATISFIED` `VIOLATED` `STALE_SPEC` `NOT_AFFECTED` `UNCLEAR` + `NO-SPEC` for uncovered files |
 | 🤖 **CI gate, keyless** | Validate + diff→requirement mapping run as plain Node scripts on every PR — no LLM, no secrets |
@@ -202,6 +214,12 @@ module. Checks afterwards are cheap — the index bounds reading to affected doc
 
 **What if specs go stale?** `check` returns `STALE_SPEC` — update the spec in
 the same PR. `validate` fails CI on dead citations and index drift.
+
+**Can it use our ADRs / design docs?** Yes — one-shot, via *reconcile*. The
+agent reads the doc, absorbs rationale into the requirement prose, records
+decided-but-unbuilt items as `deferred`, and asks you to adjudicate every
+doc-vs-code conflict. Specs stay self-contained (no permanent doc citations).
+Re-run whenever a decision document changes.
 
 ## 🤝 Contributing
 

@@ -24,6 +24,7 @@ test("init.mjs bootstraps a repo: .specs, in-repo scripts, commands, prompts, wo
     ".specmine/scripts/shared.mjs",
     ".claude/commands/specmine/scan.md",
     ".claude/commands/specmine/check.md",
+    ".claude/commands/specmine/reconcile.md",
     ".pi/prompts/specmine-validate.md",
     ".github/workflows/specmine.yml",
   ]) {
@@ -64,7 +65,14 @@ test("validate.mjs passes on pristine skeleton, catches errors after tampering",
   const regen = run("validate.mjs", ["--regen-index"], dir);
   assert.equal(regen.status, 0, regen.stderr);
   assert.match(regen.stdout, /regenerated — 1 files, 1 requirement links/);
-  const idx = JSON.parse(fs.readFileSync(path.join(dir, ".specs", "index.json"), "utf8"));
+  const idxFile = path.join(dir, ".specs", "index.json");
+  // reconciled map (doc -> date, maintained by the reconcile workflow) survives regen
+  const withRec = JSON.parse(fs.readFileSync(idxFile, "utf8"));
+  withRec.reconciled = { "docs/adr/012.md": "2026-01-01" };
+  fs.writeFileSync(idxFile, JSON.stringify(withRec, null, 2));
+  assert.equal(run("validate.mjs", ["--regen-index"], dir).status, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(idxFile, "utf8")).reconciled, { "docs/adr/012.md": "2026-01-01" });
+  const idx = JSON.parse(fs.readFileSync(idxFile, "utf8"));
   assert.deepEqual(idx.fileIndex, { "src/auth/tokens.ts": ["FR-AUTH-001"] });
   assert.equal(run("validate.mjs", [], dir).status, 0);
 });
